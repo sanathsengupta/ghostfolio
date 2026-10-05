@@ -837,19 +837,22 @@ describe('ExchangeRateDataService', () => {
       ).resolves.toBe(20);
     });
 
-    it('computes the factor via the base currency when no direct rate is stored (from = USD)', async () => {
-      marketDataRows = [
-        {
-          dataSource: 'YAHOO',
-          marketPrice: 0.9,
-          symbol: 'USDCHF',
-          date: parseDate('2024-01-05')
-        }
-      ];
-
+    it('pins current behaviour: re-queries the same pair via the base currency when the source currency is USD', async () => {
+      // USDCHF has no data. The indirect path uses 1 for the USD leg and asks
+      // for USDCHF again as the "to" leg, which still yields no rate.
       await expect(
         service.toCurrencyAtDate(10, 'USD', 'CHF', parseDate('2024-01-05'))
-      ).resolves.toBe(9);
+      ).resolves.toBeUndefined();
+
+      expect(marketDataService.get).toHaveBeenCalledTimes(2);
+      expect(marketDataService.get).toHaveBeenNthCalledWith(2, {
+        dataSource: 'YAHOO',
+        date: parseDate('2024-01-05'),
+        symbol: 'USDCHF'
+      });
+      expect(errorLogSpy).toHaveBeenCalledWith(
+        'No exchange rate has been found for USDCHF at 2024-01-05'
+      );
     });
 
     it('computes the factor via the base currency when no direct rate is stored (to = USD)', async () => {
